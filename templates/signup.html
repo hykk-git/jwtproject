@@ -9,7 +9,6 @@
     <form method="post" action="/signup/">
         {% csrf_token %}
         <label>아이디:</label> <input type="text" name="username"><br>
-        <label>이메일:</label> <input type="email" name="email"><br>
         <label>비밀번호:</label> <input type="password" name="password"><br>
         <button type="submit">회원가입</button>
     </form>
