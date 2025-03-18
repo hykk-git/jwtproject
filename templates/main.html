@@ -5,49 +5,133 @@
     <title>메인 페이지</title>
 </head>
 <body>
-    <h2>메인 페이지입니다.</h2>
-
+    <h2>메인 페이지</h2>
     <div id="auth-buttons">
-        <a href="/login/"><button>로그인</button></a>
-        <a href="/signup/"><button>회원가입</button></a>
+        <a href="/login"><button id="login-btn">로그인</button></a>
+        <button id="logout-btn" style="display: none;">로그아웃</button>
     </div>
+    <button id="board-btn">게시판</button> <!-- 게시판 버튼에 이벤트 추가 -->
 
     <script>
-        // localStorage에서 JWT 토큰 확인
-        let accessToken = localStorage.getItem("access_token");
-        
-        if (accessToken) {
-            // 로그인 상태라면 로그인/회원가입 버튼 숨기고 로그아웃 버튼 표시
-            document.getElementById("auth-buttons").innerHTML = `
-                <button onclick="loadBoard()">게시판으로 이동</button>
-                <button onclick="logout()">로그아웃</button>
-            `;
+        function checkAuthStatus() {
+            const accessToken = localStorage.getItem("access");
+
+            if (accessToken) {
+                document.getElementById("login-btn").style.display = "none";
+                document.getElementById("logout-btn").style.display = "inline-block";
+            } else {
+                document.getElementById("login-btn").style.display = "inline-block";
+                document.getElementById("logout-btn").style.display = "none";
+            }
         }
 
-        async function loadBoard() {
-            let accessToken = localStorage.getItem("access_token");
+        // 로그아웃 버튼 클릭 시 토큰 삭제 후 메인 페이지로 이동
+        document.getElementById("logout-btn").addEventListener("click", function() {
+            localStorage.removeItem("access");
+            localStorage.removeItem("refresh");
+            alert("로그아웃 되었습니다.");
+            window.location.href = "/";
+        });
 
-            let response = await fetch("/board/", {
+        // 게시판 버튼 클릭 시 fetch로 board.html 직접 로드**
+        document.getElementById("board-btn").addEventListener("click", async function() {
+            let accessToken = localStorage.getItem("access");
+
+            if (!accessToken) {
+                alert("로그인이 필요합니다.");
+                window.location.href = "/login";
+                return;
+            }
+
+            // 서버에 인증 요청
+            const response = await fetch("/board/", {
                 method: "GET",
                 headers: {
-                    "Authorization": `Bearer ${accessToken}`,  // JWT 토큰 포함
-                    "Content-Type": "application/json"
+                    "Authorization": `Bearer ${accessToken}`
+                }
+            });
+
+            console.log("response.status: ", response.status)
+            
+            if (response.status === 401) {
+                const newAccessToken = await refreshToken();
+                if (!newAccessToken) return; 
+
+                // 새 토큰으로 재요청
+                const retryResponse = await fetch("/board/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${newAccessToken}`
+                    }
+                });
+
+                if (retryResponse.ok) {
+                    loadBoardPage();  // 
+                } else {
+                    alert("다시 로그인해주세요.");
+                    localStorage.removeItem("access");
+                    localStorage.removeItem("refresh");
+                    window.location.href = "/login.html";
+                }
+            } else if (response.ok) {
+                loadBoardPage();  //
+            } else {
+                alert("오류가 발생했습니다.");
+            }
+        });
+
+        // 게시판 페이지를 fetch로 로드**
+        async function loadBoardPage() {
+            const accessToken = localStorage.getItem("access");
+
+            const response = await fetch("/board/", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${accessToken}`
                 }
             });
 
             if (response.ok) {
-                window.location.href = "/board/";  // 인증 성공 시 이동
+                const boardHtml = await response.text();  // board.html 내용을 그대로 가져옴
+                document.open();
+                document.write(boardHtml);  // 페이지를 교체해서 렌더링
+                document.close();
             } else {
-                alert("인증 실패: 로그인 후 이용하세요.");
-                window.location.href = "/login/";  // 인증 실패 시 로그인 페이지로 이동
+                alert("게시판을 불러오는 중 오류가 발생했습니다.");
+                window.location.href = "/login";
             }
         }
 
-        function logout() {
-            localStorage.removeItem("access_token");  // JWT 삭제
-            localStorage.removeItem("refresh_token");
-            window.location.href = "/";  // 로그아웃 후 메인 페이지로 이동
+        // Access 토큰이 만료되었을 경우 Refresh Token으로 갱신하는 함수
+        async function refreshToken() {
+            const refreshToken = localStorage.getItem("refresh");
+
+            if (!refreshToken) {
+                alert("로그인이 필요합니다.");
+                window.location.href = "/login.html";
+                return null;
+            }
+
+            const response = await fetch("/api/token/refresh/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ refresh: refreshToken })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem("access", data.access); 
+                return data.access;
+            } else {
+                alert("세션이 만료되었습니다. 다시 로그인하세요.");
+                localStorage.removeItem("access");
+                localStorage.removeItem("refresh");
+                window.location.href = "/login";
+                return null;
+            }
         }
+
+        checkAuthStatus();
     </script>
 </body>
 </html>
