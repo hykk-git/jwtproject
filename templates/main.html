@@ -7,19 +7,22 @@
 <body>
     <h2>메인 페이지</h2>
     <div id="auth-buttons">
+        <a href="/signup"><button id="signup-btn">회원가입</button></a>
         <a href="/login"><button id="login-btn">로그인</button></a>
         <button id="logout-btn" style="display: none;">로그아웃</button>
     </div>
-    <button id="board-btn">게시판</button> <!-- 게시판 버튼에 이벤트 추가 -->
+    <button id="board-btn">게시판</button> <!-- 게시판 버튼 -->
 
     <script>
         function checkAuthStatus() {
             const accessToken = localStorage.getItem("access");
 
             if (accessToken) {
+                document.getElementById("signup-btn").style.display = "none";
                 document.getElementById("login-btn").style.display = "none";
                 document.getElementById("logout-btn").style.display = "inline-block";
             } else {
+                document.getElementById("signup-btn").style.display = "inline-block";
                 document.getElementById("login-btn").style.display = "inline-block";
                 document.getElementById("logout-btn").style.display = "none";
             }
@@ -80,7 +83,7 @@
             }
         });
 
-        // 게시판 페이지를 fetch로 로드**
+        // 게시판 페이지를 fetch로 로드
         async function loadBoardPage() {
             const accessToken = localStorage.getItem("access");
 
@@ -92,7 +95,8 @@
             });
 
             if (response.ok) {
-                const boardHtml = await response.text();  // board.html 내용을 그대로 가져옴
+                // board.html 내용을 그대로 가져옴
+                const boardHtml = await response.text();
                 document.open();
                 document.write(boardHtml);  // 페이지를 교체해서 렌더링
                 document.close();
@@ -102,7 +106,7 @@
             }
         }
 
-        // Access 토큰이 만료되었을 경우 Refresh Token으로 갱신하는 함수
+        // Access 토큰이 만료되었을 경우 Refresh Token 요청해서 갱신
         async function refreshToken() {
             const refreshToken = localStorage.getItem("refresh");
 
