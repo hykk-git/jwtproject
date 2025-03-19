@@ -16,8 +16,6 @@
                 headers: { "Content-Type": "application/json" }
             });
 
-            console.log("서버 응답 상태 코드:", response.status);
-
             if (!response.ok) {
                 alert("게시글을 불러오는 중 오류가 발생했습니다.");
                 return;
