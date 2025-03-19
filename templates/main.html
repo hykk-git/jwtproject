@@ -16,19 +16,21 @@
     <script>
         function checkAuthStatus() {
             const accessToken = localStorage.getItem("access");
-
+            
+            // accessToken이 있으면 로그인된 사용자라는 것, 로그아웃 버튼 표시
             if (accessToken) {
                 document.getElementById("signup-btn").style.display = "none";
                 document.getElementById("login-btn").style.display = "none";
                 document.getElementById("logout-btn").style.display = "inline-block";
             } else {
+                // 없을 경우 로그인이 필요한 사용자, 로그인 버튼 표시
                 document.getElementById("signup-btn").style.display = "inline-block";
                 document.getElementById("login-btn").style.display = "inline-block";
                 document.getElementById("logout-btn").style.display = "none";
             }
         }
 
-        // 로그아웃 버튼 클릭 시 토큰 삭제 후 메인 페이지로 이동
+        // 로그아웃 버튼 클릭 시 localStorage에서 토큰 삭제 후 메인 페이지로 이동
         document.getElementById("logout-btn").addEventListener("click", function() {
             localStorage.removeItem("access");
             localStorage.removeItem("refresh");
@@ -36,7 +38,7 @@
             window.location.href = "/";
         });
 
-        // 게시판 버튼 클릭 시 fetch로 board.html 직접 로드**
+        // 게시판 버튼 클릭 시 fetch로 board.html 직접 로드
         document.getElementById("board-btn").addEventListener("click", async function() {
             let accessToken = localStorage.getItem("access");
 
@@ -46,7 +48,7 @@
                 return;
             }
 
-            // 서버에 인증 요청
+            // board에 접속할 때 토큰 확인 요청
             const response = await fetch("/board/", {
                 method: "GET",
                 headers: {
@@ -54,11 +56,10 @@
                 }
             });
 
-            console.log("response.status: ", response.status)
-            
             if (response.status === 401) {
+                // 401: access 토큰 만료 혹은 refreshToken까지 만료
+                // access 토큰 재발급
                 const newAccessToken = await refreshToken();
-                if (!newAccessToken) return; 
 
                 // 새 토큰으로 재요청
                 const retryResponse = await fetch("/board/", {
@@ -69,21 +70,25 @@
                 });
 
                 if (retryResponse.ok) {
-                    loadBoardPage();  // 
+                    // access 토큰으로 해결, 페이지 렌더링
+                    loadBoardPage();  
                 } else {
+                    // refreshToken까지 만료
                     alert("다시 로그인해주세요.");
                     localStorage.removeItem("access");
                     localStorage.removeItem("refresh");
                     window.location.href = "/login.html";
                 }
             } else if (response.ok) {
-                loadBoardPage();  //
+                // 200 OK, access token 유효
+                loadBoardPage();  
             } else {
+                // 예외처리
                 alert("오류가 발생했습니다.");
             }
         });
 
-        // 게시판 페이지를 fetch로 로드
+        // 게시판 페이지를 fetch로 로드하는 함수
         async function loadBoardPage() {
             const accessToken = localStorage.getItem("access");
 
@@ -109,13 +114,10 @@
         // Access 토큰이 만료되었을 경우 Refresh Token 요청해서 갱신
         async function refreshToken() {
             const refreshToken = localStorage.getItem("refresh");
-
-            if (!refreshToken) {
-                alert("로그인이 필요합니다.");
-                window.location.href = "/login.html";
-                return null;
-            }
-
+            
+            // Django의 TokenRefreshView 실행
+            // refresh token을 받아서 access token 발급
+            // 리턴값: access = ""
             const response = await fetch("/api/token/refresh/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -123,11 +125,13 @@
             });
 
             if (response.ok) {
+                // refresh token 유효, access token 재발급 완료
                 const data = await response.json();
                 localStorage.setItem("access", data.access); 
                 return data.access;
             } else {
-                alert("세션이 만료되었습니다. 다시 로그인하세요.");
+                // refresh token 만료
+                alert("다시 로그인하세요.");
                 localStorage.removeItem("access");
                 localStorage.removeItem("refresh");
                 window.location.href = "/login";
